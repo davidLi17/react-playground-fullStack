@@ -11,6 +11,7 @@ import FileNameList from "./FileNameList";
 import { PlaygroundContext } from "../../PlaygroundContext";
 import { debounce } from "lodash-es";
 import { Progress, InputNumber } from "antd";
+import styles from "./index.module.scss";
 
 export default function CodeEditor() {
 	const { theme, files, setFiles, selectedFileName } =
@@ -20,7 +21,7 @@ export default function CodeEditor() {
 	// 进度条状态
 	const [progress, setProgress] = useState(0);
 	const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
-	const [debounceTime, setDebounceTime] = useState(1500);
+	const [debounceTime, setDebounceTime] = useState(1000);
 	// 清理定时器
 	useEffect(() => {
 		return () => {
@@ -69,8 +70,10 @@ export default function CodeEditor() {
 		<div className="flex flex-col h-full w-full relative">
 			<div className="flex items-center gap-4 relative">
 				<FileNameList />
-				<div className="flex items-center gap-2 absolute right-1">
-					<span>代码传递到右边时间(秒):</span>
+				<div className={styles.debounce_control}>
+					<span className="text-gray-700 dark:text-gray-200">
+						代码传递到右边时间(秒):
+					</span>
 					<InputNumber
 						min={0.1}
 						max={10}
@@ -82,6 +85,7 @@ export default function CodeEditor() {
 							}
 						}}
 						style={{ width: 100 }}
+						className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
 					/>
 				</div>
 			</div>
@@ -108,7 +112,6 @@ export default function CodeEditor() {
 						theme: theme === "dark" ? "vs-dark" : "vs",
 						wordWrap: "on",
 						fontSize: 14,
-						
 					}}
 				/>
 			</div>

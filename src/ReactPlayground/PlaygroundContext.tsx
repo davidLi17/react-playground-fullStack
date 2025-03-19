@@ -88,6 +88,22 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
 	// 初始化主题为'light'
 	const [theme, setTheme] = useState<Theme>("light");
 
+	// 添加主题变化的副作用
+	useEffect(() => {
+		// 获取 HTML 根元素
+		const htmlElement = document.documentElement;
+
+		// 根据主题设置 Tailwind 的暗色模式类
+		if (theme === "dark") {
+			htmlElement.classList.add("dark");
+		} else {
+			htmlElement.classList.remove("dark");
+		}
+
+		// 同时设置一个自定义属性，可以在 CSS 中使用
+		htmlElement.setAttribute("data-theme", theme);
+	}, [theme]);
+
 	// 添加文件的函数
 	const addFile = (name: string) => {
 		// 创建新文件对象，并更新文件集合

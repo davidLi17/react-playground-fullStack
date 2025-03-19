@@ -133,7 +133,7 @@ importers:
         specifier: ^5.14.0
         version: 5.14.0(rollup@4.35.0)
       sass:
-        specifier: ^1.75.0
+        specifier: ^1.85.1
         version: 1.85.1
       typescript:
         specifier: ^5.2.2

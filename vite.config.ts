@@ -18,6 +18,17 @@ export default defineConfig({ // 导出默认的 Vite 配置对象
       brotliSize: true, // 显示 Brotli 压缩后的大小
     }), // Visualize bundle size
   ],
+  // 添加 Sass 配置
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // 使用新的 API
+        sassOptions: {
+          outputStyle: 'compressed'
+        }
+      }
+    }
+  },
   build: { // 配置构建选项
     target: 'es2018', // 设置构建目标为 ES2018，以获得更广泛的兼容性
     minify: 'esbuild', // 使用 esbuild 进行代码压缩，比 terser 更快，输出更小
@@ -51,6 +62,14 @@ export default defineConfig({ // 导出默认的 Vite 配置对象
             return 'vendor'; // 其他 node_modules 模块归入 vendor chunk
           }
         },
+      },
+      onwarn(warning, warn) {
+        // 忽略特定警告
+        if (warning.code === 'PLUGIN_WARNING' && 
+            warning.message.includes('legacy-js-api')) {
+          return;
+        }
+        warn(warning);
       },
       external: [ // 配置外部模块，不包含在 bundle 中
         'typescript', // 将 TypeScript 编译器设为外部模块，需要时通过 CDN 加载
