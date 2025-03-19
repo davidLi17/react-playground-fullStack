@@ -196,7 +196,7 @@ export default function Editor({ file, onChange, options }: Props) {
 			monaco.languages.typescript.typescriptDefaults.addExtraLib(
 				code,
 				`file://${path}`
-			); // 添加额外库
+			); // 添加额外库// 将下载的类型文件添加到 TypeScript 环境中
 		});
 
 		// 防抖处理ATA更新

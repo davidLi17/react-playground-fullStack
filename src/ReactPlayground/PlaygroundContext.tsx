@@ -14,9 +14,9 @@ import { debounce } from "lodash-es";
 
 // 定义单个文件接口，包含文件名、文件内容和语言类型
 export interface File {
-	name: string;
-	value: string;
-	language: string;
+	name: string; //文件名
+	value: string; //文件内容
+	language: string; //语言类型
 }
 
 // 定义文件集合接口，键为字符串，值为File类型
