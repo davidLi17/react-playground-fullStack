@@ -108,14 +108,7 @@ export default function CodeEditor() {
 						theme: theme === "dark" ? "vs-dark" : "vs",
 						wordWrap: "on",
 						fontSize: 14,
-						autoClosingBrackets: 'always',
-						autoClosingQuotes: 'always',
-						autoIndent: 'full',
-						formatOnPaste: true,
-						formatOnType: true,
-						suggestOnTriggerCharacters: true,
-						acceptSuggestionOnEnter: 'on',
-						tabCompletion: 'on',
+						
 					}}
 				/>
 			</div>
