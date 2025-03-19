@@ -2,6 +2,7 @@
 import React, {
 	PropsWithChildren,
 	createContext,
+	useCallback,
 	useEffect,
 	useState,
 } from "react";
@@ -9,6 +10,7 @@ import React, {
 import { compress, fileName2Language, uncompress } from "./utils";
 // 引入初始文件数据
 import { initFiles } from "./files";
+import { debounce } from "lodash-es";
 
 // 定义单个文件接口，包含文件名、文件内容和语言类型
 export interface File {
@@ -92,7 +94,35 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
 		files[name] = {
 			name,
 			language: fileName2Language(name),
-			value: "",
+			value: `import React, { useState, useEffect, useRef } from 'react';
+
+			// 定义组件 ${name}
+			const ${name}: React.FC = () => {
+			  // 示例状态
+			  const [count, setCount] = useState(0);
+			
+			  // 示例副作用
+			  useEffect(() => {
+				console.log(\`组件 ${name} 已挂载\`);
+				return () => {
+				  console.log(\`组件 ${name} 已卸载\`);
+				};
+			  }, []);
+			
+			  // 示例 Ref
+			  const divRef = useRef(null);
+			
+			  return (
+				<div ref={divRef}>
+				  <h1>Hello, ${name}!</h1>
+				  <p>当前计数: {count}</p>
+				  <button onClick={() => setCount(count + 1)}>增加计数</button>
+				</div>
+			  );
+			};
+			
+			export default ${name};
+			`,
 		};
 		setFiles({ ...files });
 	};
@@ -130,11 +160,18 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
 		});
 	};
 
-	// 使用useEffect监听文件数据变化，更新URL中的hash部分
+	// 在 PlaygroundProvider 中添加防抖的 hash 更新
+	const debouncedUpdateHash = useCallback(
+		debounce((files: Files) => {
+			const hash = compress(JSON.stringify(files));
+			window.location.hash = hash;
+		}, 1000),
+		[]
+	);
+
 	useEffect(() => {
-		const hash = compress(JSON.stringify(files));
-		window.location.hash = hash;
-	}, [files]);
+		debouncedUpdateHash(files);
+	}, [files, debouncedUpdateHash]);
 
 	// 返回PlaygroundContext.Provider组件，提供上下文数据
 	return (

@@ -1,4 +1,4 @@
-import { Files } from './PlaygroundContext'
+import { Files, File, FileLanguage } from './types/file'
 import importMap from './template/import-map.json?raw'
 import AppCss from './template/App.css?raw'
 import App from './template/App.tsx?raw'
@@ -33,4 +33,4 @@ export const initFiles: Files = {
     language: fileName2Language(IMPORT_MAP_FILE_NAME),
     value: importMap,
   }
-}
+} 

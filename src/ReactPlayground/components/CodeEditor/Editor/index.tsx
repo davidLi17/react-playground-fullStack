@@ -1,28 +1,26 @@
-import { useCallback, useEffect, useRef, Suspense } from "react"; // 引入React的钩子和Suspense组件
-import { OnMount, EditorProps } from "@monaco-editor/react"; // 引入Monaco编辑器的挂载接口和属性类型
-import { lazy } from "react"; // 引入React的懒加载功能
-import { debounce } from "lodash-es"; // 引入lodash的防抖函数
-//@ts-ignore
-import { editor, IPosition } from "monaco-editor"; // 引入Monaco编辑器的类型和接口
-import { message } from "antd"; // 引入Ant Design的消息提示组件
-// 移除AI补全相关导入
-import { createATA, clearATA } from "./ata"; // 引入ATA创建和清理函数
+import { useCallback, useEffect, useRef, Suspense } from "react";
+import { OnMount, EditorProps } from "@monaco-editor/react";
+import { lazy } from "react";
+import { debounce } from "lodash-es";
+import { editor, Range,languages } from "monaco-editor";
+import { message } from "antd";
+import { createATA, clearATA } from "./ata";
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react")); // 懒加载Monaco编辑器组件
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 export interface EditorFile {
-	name: string; // 文件名
-	value: string; // 文件内容
-	language: string; // 文件语言
+	name: string;
+	value: string;
+	language: string;
 }
 
 interface Props {
-	file: EditorFile; // 编辑的文件
-	onChange?: EditorProps["onChange"]; // 内容变化时的回调函数
-	options?: editor.IStandaloneEditorConstructionOptions; // 编辑器选项
+	file: EditorFile;
+	onChange?: EditorProps["onChange"];
+	options?: editor.IStandaloneEditorConstructionOptions;
 }
 
-const EditorLoading = () => ( // 编辑器加载时的显示组件
+const EditorLoading = () => (
 	<div className="flex items-center justify-center h-full w-full bg-gray-100 dark:bg-gray-800">
 		<div className="text-center">
 			<svg
@@ -52,138 +50,206 @@ const EditorLoading = () => ( // 编辑器加载时的显示组件
 	</div>
 );
 
-// 移除AI相关常量和函数
-
 export default function Editor({ file, onChange, options }: Props) {
-	const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // 编辑器实例的引用
-	const monacoRef = useRef<typeof import("monaco-editor") | null>(null); // Monaco编辑器模块的引用
-	const ataRef = useRef<ReturnType<typeof createATA> | null>(null); // ATA实例的引用
-	// 移除AI相关的ref
-	// 保留用于性能优化的ref
-	const lastValueRef = useRef<string>(file.value); // 上次编辑器内容的引用
-	const lastOnChangeTimeRef = useRef<number>(0); // 上次内容变化时间的引用
-
-	// 创建一个防抖的onChange处理函数
-	const debouncedOnChange = useCallback(
-		debounce((value: string, event: any) => {
-			// 只有当内容真正变化时才触发onChange
-			if (value !== lastValueRef.current) {
-				lastValueRef.current = value;
-				onChange?.(value, event);
-			}
-		}, 500), // 500ms的延迟，可以根据需要调整
-		[onChange]
-	);
-
-	// 清理ATA
+	const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+	const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+	const ataRef = useRef<ReturnType<typeof createATA> | null>(null);
+	const fileRef = useRef(file); // 添加文件引用
+	// 更新文件引用
+	useEffect(() => {
+		fileRef.current = file;
+	}, [file]);
+	// 清理 ATA
 	useEffect(() => {
 		return () => clearATA();
 	}, []);
 
 	// 格式化文档
 	const formatDocument = useCallback(() => {
-		if (!editorRef.current) return;
+		if (!editorRef.current || !fileRef.current) return;
 
 		try {
 			editorRef.current.getAction("editor.action.formatDocument")?.run();
 			const formattedCode = editorRef.current.getValue();
-			debouncedOnChange?.(formattedCode, undefined as any);
-			localStorage.setItem("code", formattedCode);
-			message.success("代码格式化成功", 0.5);
+			// 使用 Promise.resolve() 确保异步操作完成
+			Promise.resolve().then(() => {
+				onChange?.(formattedCode, undefined as any);
+				message.success("代码格式化成功", 0.5);
+			});
 		} catch (error) {
 			console.error("格式化代码时出错:", error);
 			message.error("代码格式化失败，请检查代码是否有语法错误", 1);
 		}
-	}, [debouncedOnChange]);
-
+	}, [onChange]);
 	// 编辑器挂载处理
 	const handleEditorMount: OnMount = (editor, monaco) => {
 		editorRef.current = editor;
 		monacoRef.current = monaco;
 
-		// 设置编辑器事件处理
 		editor.onDidChangeModelContent((e) => {
-			// 获取编辑器当前值
+			if (!fileRef.current) return;
 			const newValue = editor.getValue();
-
-			// 性能优化：检查是否与上次值相同
-			if (newValue === lastValueRef.current) return;
-
-			// 性能优化：限制onChange调用频率
-			const now = Date.now();
-			if (now - lastOnChangeTimeRef.current < 100) {
-				// 100ms内不重复触发
-				debouncedOnChange(newValue, e);
-			} else {
-				// 直接调用onChange
-				lastValueRef.current = newValue;
-				lastOnChangeTimeRef.current = now;
-				onChange?.(newValue, e as any);
-			}
+			onChange?.(newValue, e as any);
 		});
 
-		// 添加快捷键命令
-		editor.addCommand(
-			monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-			formatDocument
-		);
+		// 修改保存命令的处理方式
+		editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+			if (!fileRef.current) return;
+			// 使用 requestAnimationFrame 确保在下一帧执行
+			requestAnimationFrame(() => {
+				formatDocument();
+			});
+		});
 
-		// 设置TypeScript编译器选项
 		monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
 			jsx: monaco.languages.typescript.JsxEmit.Preserve,
 			esModuleInterop: true,
 			allowNonTsExtensions: true,
 			moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
 			target: monaco.languages.typescript.ScriptTarget.ES2020,
+			jsxFactory: 'React.createElement',  // 添加这行
+    		jsxFragmentFactory: 'React.Fragment', // 添加这行
 		});
-
-		// 初始化ATA (Auto Type Acquisition)
+		interface CompletionItem {
+			label: string;
+			kind:languages.CompletionItemKind;
+			insertText: string;
+			documentation: string;
+			range: Range;
+		}
+		monaco.languages.registerCompletionItemProvider('typescript', {
+			triggerCharacters: ['<', ' '],
+			provideCompletionItems: (model, position) => {
+				const wordInfo = model.getWordUntilPosition(position);
+				const line = model.getLineContent(position.lineNumber);
+				
+				const range = {
+				  startLineNumber: position.lineNumber,
+				  endLineNumber: position.lineNumber,
+				  startColumn: wordInfo.startColumn,
+				  endColumn: wordInfo.endColumn
+				};
+			
+		
+			  const suggestions:CompletionItem[] = [];
+			  
+			  // 常用的 HTML/JSX 标签
+			  const tags = ['div', 'span', 'p', 'button', 'input', 'form', 'section'];
+			  
+			  tags.forEach(tag => {
+				suggestions.push({
+				  label: tag,
+				  kind: monaco.languages.CompletionItemKind.Snippet,
+				  insertText: `${tag}></${tag}>`,
+				  documentation: `Create a <${tag}> element`,
+				  range:range as Range,
+				});
+			  });
+		
+			  return { suggestions };
+			}
+		  });
+		  //自动补全HTML标签.
+		  // 修改后的html-complete动作
+editor.addAction({
+	id: 'html-complete',
+	label: 'HTML Complete',
+	keybindings: [monaco.KeyCode.Tab],
+	run: (ed) => {
+	  const position = ed.getPosition();
+	  if (!position) return;
+	  
+	  const model = ed.getModel();
+	  if (!model) return;
+	  
+	  const word = model.getWordUntilPosition(position);
+	  const line = model.getLineContent(position.lineNumber);
+	  const beforeContent = line.substring(0, word.startColumn - 1);
+	  
+	  // 仅在检测到<标签时触发自动补全
+	  if (beforeContent.endsWith('<')) {
+		const tagName = word.word;
+		if (tagName) {
+		  const range = new monaco.Range(
+			position.lineNumber,
+			word.startColumn - 1,
+			position.lineNumber,
+			word.endColumn
+		  );
+		  
+		  ed.executeEdits('html-complete', [{
+			range,
+			text: `<${tagName}></${tagName}>`, // 使用Snippet语法
+			forceMoveMarkers: true
+		  }]);
+		  
+		  // 设置光标到中间位置
+		  ed.setPosition({
+			lineNumber: position.lineNumber,
+			column: word.startColumn + tagName.length + 1
+		  });
+		  return; // 阻止默认行为
+		}
+	  }
+	  
+	  // 没有触发自动补全时执行默认Tab行为
+	  ed.trigger('keyboard', 'type', { text: '\t' });
+	}
+  });
+  
+		
 		ataRef.current = createATA((code, path) => {
-			console.log("Now:::下载类型文件!!!!");
-
 			monaco.languages.typescript.typescriptDefaults.addExtraLib(
 				code,
 				`file://${path}`
 			);
 		});
 
-		// 设置编辑器内容变化时的处理函数
 		const debouncedATA = debounce(
 			() => ataRef.current?.(editor.getValue()),
 			1000
 		);
 		editor.onDidChangeModelContent(() => debouncedATA());
 		ataRef.current(editor.getValue());
+	// 在handleEditorMount最后添加
+editor.onKeyDown(e => {
+	if (e.keyCode === monaco.KeyCode.Tab) {
+	  console.log('Tab pressed:', {
+		position: editor.getPosition()
+	  });
+	}
+  });
+  
 	};
 
-	// 编辑器默认选项
 	const defaultOptions: editor.IStandaloneEditorConstructionOptions = {
-		minimap: { enabled: false }, // 关闭小地图
-		scrollBeyondLastLine: false, // 不滚动超出最后一行
-		automaticLayout: true, // 自动布局
-		quickSuggestions: { other: true, comments: true, strings: true }, // 快速建议配置
-		suggestOnTriggerCharacters: true, // 触发字符时显示建议
-		acceptSuggestionOnEnter: "on", // 回车键接受建议
-		tabCompletion: "on", // Tab键补全
-		wordBasedSuggestions: "allDocuments", // 基于单词的建议
-		// 保留原生内联建议功能
-		inlineSuggest: { enabled: true }, // 启用内联建议
-		...options, // 合并外部传入的选项
+		minimap: { enabled: false },
+		scrollBeyondLastLine: false,
+		automaticLayout: true,
+		quickSuggestions: { other: true, comments: true, strings: true },
+		suggestOnTriggerCharacters: true,
+		acceptSuggestionOnEnter: "on",
+		tabCompletion: "on",
+		wordBasedSuggestions: "allDocuments",
+		inlineSuggest: { enabled: true },
+		...options,
 	};
-
-	// 渲染编辑器组件
+	// 添加文件检查
+	if (!file) {
+		return null;
+	}
 	return (
-		<div className="h-full w-full border border-gray-200 dark:border-gray-700 rounded-md overflow-auto">
+		<div className="h-full w-full border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden flex flex-col relative">
 			<Suspense fallback={<EditorLoading />}>
 				<MonacoEditor
-					height="100%" // 编辑器高度
-					width="100%" // 编辑器宽度
-					language={file.language} // 编辑器语言
-					value={file.value} // 编辑器初始值
-					onChange={onChange} // 内容变化时的回调
-					options={defaultOptions} // 编辑器选项
-					onMount={handleEditorMount} // 编辑器挂载时的处理函数
-					path={file.name} // 编辑器文件路径
+					height="100%"
+					width="100%"
+					language={file.language}
+					value={file.value}
+					onChange={onChange}
+					options={defaultOptions}
+					onMount={handleEditorMount}
+					path={file.name}
 				/>
 			</Suspense>
 		</div>

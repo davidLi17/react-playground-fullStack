@@ -64,7 +64,7 @@ export default defineConfig({ // 导出默认的 Vite 配置对象
    resolve: {
     alias: {
       '@': '/src',
-      'typescript': 'https://unpkg.com/typescript@latest/lib/typescript.js', // ESM 方式
+      'typescript': 'https://unpkg.com/typescript@latest/lib/typescript.js', // ESM 方式,CDN加载代码.
     },
   },
 });

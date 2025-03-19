@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState, useCallback } from "react";
 import { PlaygroundContext } from "../../PlaygroundContext";
-import Editor from "../CodeEditor/Editor";
+// import Editor from "../CodeEditor/Editor";
 import iframeRaw from "./iframe.html?raw";
 import { IMPORT_MAP_FILE_NAME } from "../../files";
 import { Message } from "../Message";
@@ -9,7 +9,6 @@ import { debounce } from "lodash-es";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 
-// Define message data interface outside component to avoid recreation
 interface MessageData {
 	data: {
 		type: string;
@@ -22,12 +21,11 @@ export default function Preview() {
 	const [compiledCode, setCompiledCode] = useState<string>("");
 	const [error, setError] = useState<string>("");
 	const [iframeUrl, setIframeUrl] = useState<string>("");
+	const [showError, setShowError] = useState(false);
 
-	// Use useRef for values that shouldn't trigger re-renders
 	const compilerWorkerRef = useRef<Worker | null>(null);
 	const prevUrlRef = useRef<string>("");
 
-	// Initialize the compiler worker once
 	useEffect(() => {
 		if (!compilerWorkerRef.current) {
 			const worker = new CompilerWorker();
@@ -52,7 +50,6 @@ export default function Preview() {
 			compilerWorkerRef.current = worker;
 		}
 
-		// Cleanup worker on component unmount
 		return () => {
 			if (compilerWorkerRef.current) {
 				compilerWorkerRef.current.terminate();
@@ -60,7 +57,6 @@ export default function Preview() {
 		};
 	}, []);
 
-	// Create memoized message handler
 	const handleMessage = useCallback((msg: MessageData) => {
 		const { type, message } = msg.data;
 		if (type === "ERROR") {
@@ -68,7 +64,6 @@ export default function Preview() {
 		}
 	}, []);
 
-	// Set up message listener
 	useEffect(() => {
 		window.addEventListener("message", handleMessage);
 		return () => {
@@ -76,7 +71,6 @@ export default function Preview() {
 		};
 	}, [handleMessage]);
 
-	// Debounced compiler function
 	const compileCode = useCallback(
 		debounce((files: Record<string, { value: string }>) => {
 			compilerWorkerRef.current?.postMessage(files);
@@ -84,32 +78,12 @@ export default function Preview() {
 		[]
 	);
 
-	// Trigger compilation when files change
 	useEffect(() => {
 		compileCode(files);
 	}, [files, compileCode]);
 
-	// Generate and update iframe URL when dependencies change
 	useEffect(() => {
-		// Only generate new URL when compiledCode or error changes
 		const importMapValue = files[IMPORT_MAP_FILE_NAME]?.value || "{}";
-
-		const errorHtml = error
-			? `
-      <div style="
-        padding: 20px;
-        color: #ff4d4f;
-        background: #fff2f0;
-        border: 1px solid #ffccc7;
-        border-radius: 4px;
-        font-family: system-ui;
-        white-space: pre-wrap;
-      ">
-        <h3 style="margin: 0 0 10px">编译错误</h3>
-        <pre style="margin: 0;font-size:1.5rem;">${error}</pre>
-      </div>
-    `
-			: "";
 
 		const content = iframeRaw
 			.replace(
@@ -118,35 +92,43 @@ export default function Preview() {
 			)
 			.replace(
 				'<script type="module" id="appSrc"></script>',
-				error
-					? errorHtml
-					: `<script type="module" id="appSrc">${compiledCode}</script>`
+				`<script type="module" id="appSrc">${compiledCode}</script>`
 			);
 
-		// Create new Blob URL
 		const newUrl = URL.createObjectURL(
 			new Blob([content], { type: "text/html" })
 		);
 
-		// Revoke previous URL to prevent memory leaks
 		if (prevUrlRef.current) {
 			URL.revokeObjectURL(prevUrlRef.current);
 		}
 
-		// Update state and reference
 		setIframeUrl(newUrl);
 		prevUrlRef.current = newUrl;
 
-		// Cleanup function to revoke URL when component unmounts or URL changes
 		return () => {
 			if (newUrl) {
 				URL.revokeObjectURL(newUrl);
 			}
 		};
-	}, [compiledCode, error, files[IMPORT_MAP_FILE_NAME]?.value]);
+	}, [compiledCode, files[IMPORT_MAP_FILE_NAME]?.value]);
 
 	return (
 		<div className="h-screen w-full flex flex-col">
+			<div className="flex items-center gap-2 p-2 border-b absolute z-10 right-4 top-4 bg-gray-800 bg-opacity-70 rounded-md shadow-md px-3 py-2 hover:bg-opacity-90 transition-all duration-300">
+				<span className="text-sm text-white font-medium">显示错误</span>
+				<button
+					className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+						showError ? "bg-green-500" : "bg-gray-500"
+					}`}
+					onClick={() => setShowError(!showError)}>
+					<span
+						className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-200 shadow-md ${
+							showError ? "translate-x-5" : "translate-x-1"
+						}`}
+					/>
+				</button>
+			</div>
 			<Allotment
 				vertical
 				className="h-full">
@@ -161,7 +143,7 @@ export default function Preview() {
 									sandbox="allow-scripts allow-same-origin"
 								/>
 							)}
-							{error && (
+							{error && showError && (
 								<Message
 									type="error"
 									content={error}
