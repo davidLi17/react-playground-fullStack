@@ -7,7 +7,6 @@ function App() {
 	return (
 		<PlaygroundProvider>
 			<ReactPlayground />
-			<Analytics />
 		</PlaygroundProvider>
 	);
 }
