@@ -1,42 +1,61 @@
 import { useState } from "react";
-import { useCopyToClipboard } from "react-use";
+import React from "react";
 import "./App.css";
 
 function App() {
-	const [text, setText] = useState("");
-	const [, copyToClipboard] = useCopyToClipboard();
 	const [count, setCount] = useState(0);
-	const [isCopying, setIsCopying] = useState(false);
-	const handleCopy = () => {
-		if (text) {
-			copyToClipboard(text);
-			alert("复制成功!");
-		}
+	const [isVisible, setIsVisible] = useState(true);
+	const [inputValue, setInputValue] = useState("");
+
+	const handleIncrement = () => {
+		setCount((prev) => prev + 1);
+	};
+
+	const handleDecrement = () => {
+		setCount((prev) => prev - 1);
+	};
+
+	const handleReset = () => {
+		setCount(0);
+	};
+
+	const toggleVisibility = () => {
+		setIsVisible((prev) => !prev);
 	};
 
 	return (
-		<div className="card">
-			<h1>文本复制工具示例</h1>
-			<div style={{ display: "flex", gap: "10px" }}>
-				<input
-					value={text}
-					onChange={(e) => setText(e.target.value)}
-					placeholder="请输入要复制的文本"
-					style={{ padding: "8px", borderRadius: "4px" }}
-				/>
-				<button
-					onClick={() => {
-						setCount(count + 1);
-						setIsCopying(true);
-					}}
-					style={{
-						padding: "8px",
-						borderRadius: "4px",
-						backgroundColor: isCopying ? "#ccc" : "#007bff",
-						color: "#fff",
-					}}></button>
-				<div>{isCopying ? "正在复制..." : "复制文本"}</div>
-				<button onClick={handleCopy}>复制</button>
+		<div className={`card`}>
+			<h1>增强版计数器</h1>
+
+			{isVisible && (
+				<div className="counter-section">
+					<h2>当前计数: {count}</h2>
+					<div className="input-section">
+						<input
+							type="number"
+							value={inputValue}
+							onChange={(e) => setInputValue(e.target.value)}
+							placeholder="输入数字"
+						/>
+						<button onClick={() => setCount(Number(inputValue))}>
+							设置数值
+						</button>
+					</div>
+				</div>
+			)}
+
+			<div className="button-group">
+				<button onClick={handleIncrement}>增加</button>
+				<button onClick={handleDecrement}>减少</button>
+				<button onClick={handleReset}>重置</button>
+				<button onClick={toggleVisibility}>
+					{isVisible ? "隐藏" : "显示"}计数器
+				</button>
+			</div>
+
+			<div className="status-section">
+				<p>计数状态: {count > 0 ? "正数" : count < 0 ? "负数" : "零"}</p>
+				<p>是否为偶数: {count % 2 === 0 ? "是" : "否"}</p>
 			</div>
 		</div>
 	);
