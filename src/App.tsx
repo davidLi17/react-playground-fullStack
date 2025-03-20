@@ -1,15 +1,15 @@
-import ReactPlayground from './ReactPlayground';
-
-import './App.scss';
-import { PlaygroundProvider } from './ReactPlayground/PlaygroundContext';
+import ReactPlayground from "./ReactPlayground";
+import { Analytics } from "@vercel/analytics/next";
+import "./App.scss";
+import { PlaygroundProvider } from "./ReactPlayground/PlaygroundContext";
 
 function App() {
-
-  return (
-    <PlaygroundProvider>
-      <ReactPlayground/>
-    </PlaygroundProvider>
-  )
+	return (
+		<PlaygroundProvider>
+			<ReactPlayground />
+			<Analytics />
+		</PlaygroundProvider>
+	);
 }
 
-export default App
+export default App;
