@@ -33,12 +33,14 @@ export default function Preview() {
 	const [activeIframeIndex, setActiveIframeIndex] = useState<0 | 1>(0);
 	const inactiveIframeIndex = activeIframeIndex === 0 ? 1 : 0;
 
-	// 添加一个引用来跟踪上次内容，避免不必要的更新
+	// 添加一个memory story book来跟踪上次内容，避免不必要的更新
 	const lastContentRef = useRef<string>("");
 
 	// 初始化 Worker
 	useEffect(() => {
 		if (!compilerWorkerRef.current) {
+			//单例模式
+			// 创建 Worker
 			const worker = new CompilerWorker();
 
 			worker.addEventListener(
@@ -48,15 +50,13 @@ export default function Preview() {
 				}: {
 					data: { type: string; data?: string; message?: string };
 				}) => {
-					setIsCompiling(false); // 编译完成
+					setIsCompiling(false); // 编译flag
 
 					if (data.type === "COMPILED_CODE") {
 						setCompiledCode(data.data || "");
 						setError("");
 					} else if (data.type === "ERROR") {
 						setError(data.message || "编译错误");
-						// 不清空编译代码，保留上次成功的结果
-						// setCompiledCode("");
 					}
 				}
 			);
@@ -69,7 +69,7 @@ export default function Preview() {
 			urlPoolRef.current.forEach((url) => URL.revokeObjectURL(url));
 
 			if (compilerWorkerRef.current) {
-				compilerWorkerRef.current.terminate();
+				compilerWorkerRef.current.terminate(); // Aborts worker's associated global environment.
 			}
 		};
 	}, []);
@@ -91,7 +91,7 @@ export default function Preview() {
 	const compileCode = useCallback(
 		debounce((files: Record<string, { value: string }>) => {
 			setIsCompiling(true); // 开始编译
-			compilerWorkerRef.current?.postMessage(files);
+			compilerWorkerRef.current?.postMessage(files); // 发送编译请求, 传递文件对象
 		}, 800), // 减少防抖时间提高响应速度
 		[]
 	);
@@ -102,7 +102,7 @@ export default function Preview() {
 
 	// 优化 iframe URL 更新逻辑
 	useEffect(() => {
-		const importMapValue = files[IMPORT_MAP_FILE_NAME]?.value || "{}";
+		const importMapValue = files[IMPORT_MAP_FILE_NAME]?.value || "{}"; // 确保 importMapValue 是字符串
 
 		const content = iframeRaw
 			.replace(

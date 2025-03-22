@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import localforage from 'localforage';
-import { getCompletion, getStreamCompletion } from '../../services/aiCompletion';
+import { getCompletion } from '../../services/aiCompletion';
 
 // 定义消息接口
 export interface Message {
@@ -84,33 +84,18 @@ export function useAIChat() {
     try {
       // 构建对话上下文
       const context = buildContext(messages);
-      // 创建空的AI消息
-      const aiMessage: Message = {
-        content: '',
-        isUser: false,
-        timestamp: Date.now()
-      };
-      const updatedMessages = [...newMessages, aiMessage];
-      setMessages(updatedMessages);
-
-      // 使用流式响应
-      const stream = await getStreamCompletion(input, context);
-      
-      stream.on('token', (token: string) => {
-        // 转义markdown特殊字符
-        const escapedToken = token.replace(/[\[\]\`\*\_\#]/g, '\\$&');
-        aiMessage.content += escapedToken;
-        setMessages([...newMessages, { ...aiMessage }]);
-      });
-
-      stream.on('done', async () => {
-        // 保存完整的消息历史
-        await saveMessages([...newMessages, aiMessage]);
-      });
-
-      stream.on('error', (error) => {
-        console.error('流式响应错误:', error);
-      });
+      // 调用AI服务获取回复，传入上下文
+      const response = await getCompletion(input, context);
+      if (response) {
+        const aiMessage: Message = {
+          content: response.replace(/[\[\]\`\*\_\#]/g, '\\$&'),  // 转义markdown特殊字符
+          isUser: false,
+          timestamp: Date.now()
+        };
+        const updatedMessages = [...newMessages, aiMessage];
+        setMessages(updatedMessages);
+        await saveMessages(updatedMessages);
+      }
     } catch (error) {
       // 错误处理，输出到控制台
       console.error('AI回复失败:', error);
